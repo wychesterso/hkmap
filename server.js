@@ -2,7 +2,7 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 
-const app = express();
+const app = express(); // Express.js framework
 const db = new sqlite3.Database('./locations.db');
 
 app.use(cors());
@@ -18,4 +18,6 @@ app.get('/locations', (req, res) => {
 });
 
 const PORT = 3000;
+
+// start HTTP web server
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

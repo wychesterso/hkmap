@@ -7,32 +7,12 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    #map {
-      height: 500px;
-    }
-    #info {
-      margin-top: 10px;
-    }
-    #score {
-      margin-top: 10px;
-      font-size: 1.2em;
-      margin-bottom: 10px;
-    }
-    #score, #prompt, #start-btn, #info {
-      text-align: center;
-    }
-    #start-btn {
-      display: block;
-      margin: 0 auto; /* center the button */
-      margin-bottom: 20px;
-    }
+    #map { height: 500px; }
+    #info, #score, #prompt, #start-btn, #reset-btn { text-align: center; margin-top: 10px; }
+    #start-btn, #reset-btn { display: block; margin: 0 auto; margin-bottom: 10px; }
     .top-banner {
-      background-color: #c8dbc8;
-      color: white;
-      text-align: center;
-      padding: 20px 0;
-      font-size: 24px;
-      font-weight: bold;
+      background-color: #c8dbc8; color: white; text-align: center;
+      padding: 20px 0; font-size: 24px; font-weight: bold;
       font-family: Papyrus, Arial, sans-serif;
     }
   </style>
@@ -42,52 +22,77 @@
   <div id="score">Score: 0</div>
   <p id="prompt">Click "Start" to begin!</p>
   <button id="start-btn">Start</button>
+  <button id="reset-btn" style="display: none;">Reset</button>
   <div id="map"></div>
   <p id="info"></p>
 
   <script>
     // initialize map
-    const map = L.map('map').setView([22.3193, 114.1694], 12);
+    // 12 zooms into Kowloon & HK, 11 covers NT too
+    const map = L.map('map').setView([22.3193, 114.1694], 11);
+    
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
-      subdomains: 'abcd',
-      maxZoom: 18,
+      subdomains: 'abcd', maxZoom: 18
     }).addTo(map);
 
-    // location list
     let locations = [];
-
-    // access Node.js API to load locations
-    async function loadLocations() {
-      try {
-        const response = await fetch('http://localhost:3000/locations');
-        locations = await response.json();
-      } catch (error) {
-        console.error("Error loading locations:", error);
-      }
-    }
-    
-    // event listener
-    document.getElementById('start-btn').addEventListener('click', async () => {
-      await loadLocations();
-      startGame();
-    });
-
+    let usedLocations = [];
     let currentLocation = null;
     let userMarker = null;
     let actualMarker = null;
     let roundInProgress = false;
     let score = 0;
+    let roundsPlayed = 0;
+    const maxRounds = 10;
 
-    // start new game round
+    // populate locations by accessing API
+    async function loadLocations() {
+      try {
+        const response = await fetch('http://localhost:3000/locations');
+        locations = await response.json();
+        usedLocations = [];
+      } catch (error) {
+        console.error("Error loading locations:", error);
+      }
+    }
+
+    // start button
+    document.getElementById('start-btn').addEventListener('click', async () => {
+      await loadLocations();
+      startGame();
+    });
+
+    // play again button
+    document.getElementById('reset-btn').addEventListener('click', resetGame);
+
+    // start new game
     function startGame() {
       if (roundInProgress) {
         alert("Finish the current round first!");
         return;
       }
 
+      // end game after 10 rounds
+      if (roundsPlayed >= maxRounds || usedLocations.length === locations.length) {
+        document.getElementById('prompt').textContent = "Game Over!";
+        document.getElementById('info').textContent = `Final Score: ${score}`;
+        document.getElementById('start-btn').style.display = "none";
+        document.getElementById('reset-btn').style.display = "block";
+        return;
+      }
+
+      // in case not enough locations (shouldn't happen tho)
+      let availableLocations = locations.filter(loc => !usedLocations.includes(loc.name));
+      if (availableLocations.length === 0) {
+        document.getElementById('prompt').textContent = "No more locations left!";
+        return;
+      }
+
       // pick random location
-      currentLocation = locations[Math.floor(Math.random() * locations.length)];
+      currentLocation = availableLocations[Math.floor(Math.random() * availableLocations.length)];
+      usedLocations.push(currentLocation.name);
+
       document.getElementById('prompt').textContent = `Find: ${currentLocation.name}`;
       document.getElementById('info').textContent = "Click on the map to make your guess!";
       roundInProgress = true;
@@ -97,20 +102,18 @@
       if (actualMarker) map.removeLayer(actualMarker);
     }
 
-    // Haversine formula
+    // Haversine formula (mathy stuff to calc dist between guess and targ)
     function calculateDistance(lat1, lng1, lat2, lng2) {
       const toRad = (value) => (value * Math.PI) / 180;
-      const R = 6371; // Earth's radius in km
+      const R = 6371; 
       const dLat = toRad(lat2 - lat1);
       const dLng = toRad(lng2 - lng1);
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c; // distance in km
+      return R * c;
     }
 
-    // award points based on closeness to target
+    // award pts based on proximity to targ
     function awardPoints(distance) {
       if (distance < 0.2) return 100;
       if (distance < 0.3) return 75;
@@ -131,42 +134,62 @@
       const userLng = e.latlng.lng;
 
       // mark guess location
-      if (userMarker) map.removeLayer(userMarker); // remove prev marker
+      if (userMarker) map.removeLayer(userMarker);
       userMarker = L.marker([userLat, userLng], { title: 'Your Guess' }).addTo(map);
 
-      // calc distance
+      // calc distance & award pts
       const distance = calculateDistance(userLat, userLng, currentLocation.lat, currentLocation.lng);
-
-      // award points
       const points = awardPoints(distance);
       score += points;
 
       // update score display
       document.getElementById('score').textContent = `Score: ${score}`;
 
-      // mark actual location
-      if (actualMarker) map.removeLayer(actualMarker); // remove prev marker
-      actualMarker = L.marker([currentLocation.lat, currentLocation.lng], {
-        title: `Actual Location: ${currentLocation.name}`,
-      }).addTo(map);
+      // mark actual targ
+      if (actualMarker) map.removeLayer(actualMarker);
+      actualMarker = L.marker([currentLocation.lat, currentLocation.lng], { title: `Actual Location: ${currentLocation.name}` }).addTo(map);
       actualMarker.bindPopup(`Actual Location: ${currentLocation.name}`).openPopup();
 
-      // display
+      // display msg
       const resultMessage = points == 100
-        ? `Perfect! You guessed just ${distance.toFixed(2)} km away and scored 100 points!`
+        ? `Perfect! You were just ${distance.toFixed(2)} km away and scored 100 points!`
         : points >= 75
         ? `Good job! You were ${distance.toFixed(2)} km away and scored ${points} points.`
         : points >= 50
-        ? `Not bad! You guessed ${distance.toFixed(2)} km away and scored ${points} points.`
+        ? `Not bad! You were ${distance.toFixed(2)} km away and scored ${points} points.`
         : points >= 25
-        ? `Close, but no cigar! You were ${distance.toFixed(2)} km away and scored ${points} points.`
+        ? `Close! You were ${distance.toFixed(2)} km away and scored ${points} points.`
         : points >= 10
-        ? `Not good enough! You guessed ${distance.toFixed(2)} km away and scored ${points} points.`
-        : `Too far! You guessed ${distance.toFixed(2)} km away and scored 0 points.`;
-      document.getElementById('info').textContent = `${resultMessage} Click "Start" to play again!`;
+        ? `Not quite! You were ${distance.toFixed(2)} km away and scored ${points} points.`
+        : `Too far! You were ${distance.toFixed(2)} km away and scored 0 points.`;
 
+      document.getElementById('info').textContent = `${resultMessage} Click "Start" for the next round.`;
+
+      roundsPlayed++;
       roundInProgress = false;
+
+      // end the game
+      if (roundsPlayed >= maxRounds) {
+        document.getElementById('prompt').textContent = "Game Over!";
+        document.getElementById('info').textContent = `Final Score: ${score}`;
+        document.getElementById('start-btn').style.display = "none";
+        document.getElementById('reset-btn').style.display = "block";
+      }
     });
+
+    // reset game after 10 rounds
+    function resetGame() {
+      score = 0;
+      roundsPlayed = 0;
+      usedLocations = [];
+      document.getElementById('score').textContent = "Score: 0";
+      document.getElementById('prompt').textContent = "Click 'Start' to begin!";
+      document.getElementById('info').textContent = "";
+      document.getElementById('start-btn').style.display = "block";
+      document.getElementById('reset-btn').style.display = "none";
+      if (userMarker) map.removeLayer(userMarker);
+      if (actualMarker) map.removeLayer(actualMarker);
+    }
 
   </script>
 </body>
