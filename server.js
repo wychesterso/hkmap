@@ -8,7 +8,7 @@ const db = new sqlite3.Database('./locations.db');
 app.use(cors());
 app.use(express.json());
 
-// GET all locations
+// Read - GET
 app.get('/locations', (req, res) => {
   db.all('SELECT * FROM locations', [], (err, rows) => {
     if (err) {
@@ -19,7 +19,7 @@ app.get('/locations', (req, res) => {
   });
 });
 
-// POST a new location
+// Create - POST
 app.post('/locations', (req, res) => {
   const { name, district, lat, lng } = req.body;
   if (!name || !district || !lat || !lng) {
@@ -34,7 +34,7 @@ app.post('/locations', (req, res) => {
   });
 });
 
-// PUT (Update a location)
+// Update - PUT
 app.put('/locations/:id', (req, res) => {
   const { id } = req.params;
   const { name, district, lat, lng } = req.body;
@@ -44,19 +44,25 @@ app.put('/locations/:id', (req, res) => {
       if (err) {
         return res.status(500).json({ error: err.message });
       }
-      res.json({ message: 'Location updated' });
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Location not found' });
+      }
+      res.status(200).json({ message: 'Location updated' });
     }
   );
 });
 
-// DELETE a location
+// Delete - DELETE
 app.delete('/locations/:id', (req, res) => {
   const { id } = req.params;
   db.run('DELETE FROM locations WHERE id = ?', [id], function(err) {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
-    res.json({ message: 'Location deleted' });
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Location not found' });
+    }
+    res.status(204).send();
   });
 });
 
