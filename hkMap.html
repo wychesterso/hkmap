@@ -75,8 +75,7 @@
 
       // end game after 10 rounds
       if (roundsPlayed >= maxRounds || usedLocations.length === locations.length) {
-        document.getElementById('prompt').textContent = "Game Over!";
-        document.getElementById('info').textContent = `Final Score: ${score}`;
+        document.getElementById('prompt').textContent = `Game Over! Final Score: ${score}`;
         document.getElementById('start-btn').style.display = "none";
         document.getElementById('reset-btn').style.display = "block";
         return;
@@ -170,8 +169,7 @@
 
       // end the game
       if (roundsPlayed >= maxRounds) {
-        document.getElementById('prompt').textContent = "Game Over!";
-        document.getElementById('info').textContent = `Final Score: ${score}`;
+        document.getElementById('prompt').textContent = `Game Over! Final Score: ${score}`;
         document.getElementById('start-btn').style.display = "none";
         document.getElementById('reset-btn').style.display = "block";
       }

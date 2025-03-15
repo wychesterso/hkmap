@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Manage Locations</title>
+    <script defer src="admin.js"></script>
+</head>
+<body>
+    <h1>Manage Locations</h1>
+    <form id="location-form">
+        <input type="hidden" id="location-id">
+        <input type="text" id="location-name" placeholder="Name" required>
+        <input type="text" id="district" placeholder="District" required>
+        <input type="number" id="lat" placeholder="Latitude" step="any" required>
+        <input type="number" id="lng" placeholder="Longitude" step="any" required>
+        <button type="submit">Add Location</button>
+    </form>
+    <ul id="locations-list"></ul>
+</body>
+</html>
