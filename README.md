@@ -4,7 +4,7 @@
 Clickable map!<br/>
 Based on real locations in HK!<br/>
 Distance and score calculation!<br/>
-RESTful API with admin panel for easy data access!
+Admin panel for easy access to data!
 
 **Stack:**<br/>
 Frontend - HTML, JavaScript, Leaflet.js (OpenStreetMap)<br/>
